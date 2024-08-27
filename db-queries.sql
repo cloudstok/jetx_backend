@@ -1,7 +1,7 @@
 
-DROP DATABASE if EXISTS `jetx`;
-CREATE DATABASE IF NOT EXISTS `jetx`;
-use `jetx`;
+DROP DATABASE if EXISTS `jetx_game`;
+CREATE DATABASE IF NOT EXISTS `jetx_game`;
+use `jetx_game`;
 
  CREATE TABLE IF NOT EXISTS `settlement`(
    `settlement_id` int NOT NULL AUTO_INCREMENT,
