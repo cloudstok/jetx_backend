@@ -68,23 +68,12 @@ CREATE TABLE user_messages (
     user_id VARCHAR(255) NOT NULL,
     operator_id varchar(255) DEFAULT NULL,
     msg TEXT,
-    gif varchar(255) DEFAULT null,
     is_deleted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 
-
-CREATE TABLE user_likes (
-   id int primary key  auto_increment,
-    user_id VARCHAR(255)  not null ,
-    operator_id varchar(255) DEFAULT NULL,
-    msg_id INT not null ,
-    is_like BOOLEAN default 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
 
 CREATE TABLE `users` (
   `id` int not null auto_increment,
