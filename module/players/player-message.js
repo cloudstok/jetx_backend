@@ -10,7 +10,8 @@ const initPlayer = (io, socket, data) => {
     }
 }
 
-let playerCount = 0;
+let playerCount = Math.floor(Math.random() * (90 - 45 + 1)) + 45;
+let activePlayers = 0;
 const handleUser = async (io, socket, data) => {
     try {
         const [token, game_id] = data;
@@ -24,12 +25,14 @@ const handleUser = async (io, socket, data) => {
                 user_id = encodeURIComponent(user_id);
                 const key = `${operatorId}:${user_id}`;
                 playerCount++;
+                activePlayers++;
                 balance = (+balance).toFixed(2);
                 const playerDetailsFromApi = { id: user_id, operator_id: operatorId, name, balance, avatar: avatar && avatar !== "null" ? avatar : faker.image.avatar(), session_token: token, socket_id: socket.id, game_id };
                 await setCache(key, JSON.stringify(playerDetailsFromApi));
                 socket.on("disconnect", async () => {
                     logger.info(`user disconnected :: ${operatorId}:${user_id}`)
                     playerCount--;
+                    activePlayers--;
                     await deleteCache(key);
                 });
 
@@ -87,7 +90,7 @@ const getUserDataFromSource = async (token) => {
 }
 
 
-const getPlayerCount = async () => playerCount;
+const getPlayerCount = async () => activePlayers;
 
 const initPlayerBase = async (io) => {
     try {
