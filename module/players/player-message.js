@@ -1,7 +1,7 @@
-const { faker } = require('@faker-js/faker');
 const axios = require('axios');
 const { setCache, getCache, deleteCache } = require('../../utilities/redis-connection');
 const createLogger = require('../../utilities/logger');
+const { getRandomAvator } = require('../../utilities/common-function');
 const logger = createLogger('players', 'jsonl');
 const initPlayer = (io, socket, data) => {
     const [message, ...rest] = data
@@ -27,7 +27,8 @@ const handleUser = async (io, socket, data) => {
                 playerCount++;
                 activePlayers++;
                 balance = (+balance).toFixed(2);
-                const playerDetailsFromApi = { id: user_id, operator_id: operatorId, name, balance, avatar: avatar && avatar !== "null" ? avatar : faker.image.avatar(), session_token: token, socket_id: socket.id, game_id };
+                let mockAvatar = getRandomAvator();
+                const playerDetailsFromApi = { id: user_id, operator_id: operatorId, name, balance, avatar: avatar && avatar !== "null" ? avatar : mockAvatar, session_token: token, socket_id: socket.id, game_id };
                 await setCache(key, JSON.stringify(playerDetailsFromApi));
                 socket.on("disconnect", async () => {
                     logger.info(`user disconnected :: ${operatorId}:${user_id}`)
@@ -60,7 +61,8 @@ const getDataForSession = async(data, socket) => {
         let { name, user_id, balance, avatar, operatorId } = userData;
         const key = `${operatorId}:${user_id}`;
         balance = (+balance).toFixed(2);
-        const playerDetailsFromApi = { id: user_id, operator_id: operatorId, name, balance, avatar: avatar && avatar !== "null" ? avatar : faker.image.avatar(), session_token: token, socket_id: socket, game_id };
+        let mockAvatar = getRandomAvator();
+        const playerDetailsFromApi = { id: user_id, operator_id: operatorId, name, balance, avatar: avatar && avatar !== "null" ? avatar : mockAvatar, session_token: token, socket_id: socket, game_id };
         await setCache(key, JSON.stringify(playerDetailsFromApi));
         return playerDetailsFromApi;
     }catch (err) {
