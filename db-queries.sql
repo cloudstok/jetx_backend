@@ -95,16 +95,12 @@ CREATE TABLE `users` (
 -- users table
 create index user_id_index on users (user_id);
 create index session_toke_index on users (session_token);
--- uesr_like table
-create index user_id_index on user_likes (user_id);
-create index session_toke_index on user_likes (msg_id);
 -- bets table
 create index user_id_index on bets (bet_id);
 create index session_toke_index on bets (user_id);
 -- settlement table
 create index user_id_index on settlement (bet_id);
 create index session_toke_index on settlement (user_id);
-
 
 ALTER TABLE `users` ADD COLUMN `socket_id` VARCHAR(255) NULL AFTER `session_token`;
 ALTER TABLE `user_messages` ADD COLUMN `avatar` VARCHAR(255) ;
