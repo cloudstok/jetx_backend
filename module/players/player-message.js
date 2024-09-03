@@ -10,7 +10,7 @@ const initPlayer = (io, socket, data) => {
     }
 }
 
-let playerCount = Math.floor(Math.random() * (100 - 60 + 1)) + 60;
+let playerCount = Math.floor(Math.random() * (900 - 500 + 1)) + 500;
 let activePlayers = 0;
 const handleUser = async (io, socket, data) => {
     try {

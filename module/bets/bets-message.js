@@ -251,7 +251,7 @@ const cashOut = async (io, socket, [max_mult, status, maxAutoCashout, ...betId],
         const betObjCopy = betObj;
         Object.assign(betObj, { lobby_id, bet_amount, user_id, operator_id });
         max_mult = (betObj.maxAutoCashout !== 'null' && maxAutoCashout !== 'null') ? betObj.maxAutoCashout : max_mult;
-        betObj.maxAutoCashout = (maxAutoCashout === 'null') ? 'null' : betObj.maxAutoCashout;
+        betObj.maxAutoCashout = (maxAutoCashout === 'null') ? 'null' : Number(betObj.maxAutoCashout).toFixed(2);
 
 
         const userBets = bets.filter(e => e.token === betObj.token);

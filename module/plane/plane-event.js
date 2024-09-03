@@ -82,7 +82,7 @@ const initLobby = async (io) => {
 
 const getMaxMultOdds = async (io) => {
     try {
-        let odds = await read('SELECT lobby_id, max_mult, created_at from lobbies order by created_at desc limit 30');
+        let odds = await read('SELECT lobby_id, max_mult, created_at from lobbies order by created_at desc limit 100');
         return io.emit('maxOdds', odds);
     } catch (err) {
         console.error(err)
