@@ -10,6 +10,7 @@ const betsLogger = createLogger('failedRevertedBets', 'jsonl');
 const settleBet = async (req, res) => {
     try {
         let { amount, userId, operatorId, rollbackMsg, description, txn_type, bet_id, socket_id, token } = req.body;
+        userId = encodeURIComponent(userId);
         const userDetail = await getUserData(userId, operatorId);
         if (!userDetail) {
             return res.status(400).send({ status: false, msg: "Invalid User details" });

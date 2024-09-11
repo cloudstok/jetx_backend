@@ -105,3 +105,13 @@ create index session_toke_index on settlement (user_id);
 ALTER TABLE `users` ADD COLUMN `socket_id` VARCHAR(255) NULL AFTER `session_token`;
 ALTER TABLE `user_messages` ADD COLUMN `avatar` VARCHAR(255) ;
 ALTER TABLE `user_messages` ADD COLUMN `name` VARCHAR(255);
+
+
+
+
+
+--INDEX QUERIES
+ALTER TABLE `jetx_game`.`bets` ADD INDEX `lobby_id_index` (`lobby_id` ASC) VISIBLE, ADD INDEX `operator_id_index` (`operator_id` ASC) VISIBLE, ADD INDEX `bet_amount_index` (`bet_amount` ASC) VISIBLE, ADD INDEX `created_at_index` (`created_at` ASC) VISIBLE;
+ALTER TABLE `jetx_game`.`round_stats` ADD INDEX `lobby_id_index` (`lobby_id` ASC) INVISIBLE, ADD INDEX `max_mult_index` (`max_mult` ASC) VISIBLE, ADD INDEX `created_at_index` (`created_at` ASC) VISIBLE;
+ALTER TABLE `jetx_game`.`settlement` ADD INDEX `lobby_id_index` (`lobby_id` ASC) INVISIBLE, ADD INDEX `operator_id_index` (`operator_id` ASC) INVISIBLE, ADD INDEX `bet_amount_index` (`max_mult` ASC) INVISIBLE, ADD INDEX `max_mult_index` (`max_mult` ASC) INVISIBLE, ADD INDEX `status_index` (`status` ASC) INVISIBLE, ADD INDEX `created_at_index` (`created_at` ASC) VISIBLE;
+ALTER TABLE `jetx_game`.`user_messages` ADD INDEX `user_id_index` (`user_id` ASC) INVISIBLE, ADD INDEX `operator_id_index` (`operator_id` ASC) INVISIBLE, ADD INDEX `created_at_index` (`created_at` ASC) VISIBLE;
