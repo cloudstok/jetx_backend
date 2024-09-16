@@ -335,7 +335,7 @@ const settleBet = async (io, data) => {
             const updatedBets = [];
             await Promise.all(filteredBets.map(async betObj => {
                 const [b, lobby_id, bet_amount, user_id, operator_id, identifier] = betObj.bet_id.split(":");
-                if (betObj.maxAutoCashout !== 'null' && Number(betObj.maxAutoCashout) < lobbyData.max_mult) {
+                if (betObj.maxAutoCashout !== 'null' && Number(betObj.maxAutoCashout) <= lobbyData.max_mult) {
                     const socket = io.sockets.sockets.get(betObj.socket_id);
 
                     if (socket) {
