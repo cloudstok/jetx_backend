@@ -25,7 +25,7 @@ const initLobby = async (io) => {
     const end_delay = 2;
     odds.total_players = await getPlayerCount();
     const max_mult = generateOdds().mult;
-    // const max_mult = 2;
+    // const max_mult = 120;
     for (let x = 0; x < start_delay; x++) {
         io.emit("plane", `${lobbyId}:${inc}:0`);
         inc++
@@ -38,7 +38,7 @@ const initLobby = async (io) => {
 
     await settleCallBacks(io);
 
-    await sleep(2000);
+    await sleep(1000);
 
     let init_val = 1;
     recurLobbyData['status'] = 1;

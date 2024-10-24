@@ -5,6 +5,7 @@ const { getUserData, getDataForSession } = require('../players/player-message');
 const { deleteCache, setCache } = require('../../utilities/redis-connection');
 const { logEventAndEmitResponse } = require('../../utilities/helper-function');
 const getLogger = require('../../utilities/logger');
+const { sendToQueue } = require('../../utilities/amqp');
 const logger = getLogger('Bets', 'jsonl');
 const cashoutLogger = getLogger('Cashout', 'jsonl');
 const settlBetLogger = getLogger('Settlement', 'jsonl');
@@ -29,8 +30,6 @@ const initBet = async (io, socket, data) => {
 
 let bets = [];
 let settlements = [];
-
-
 let lobbyData = {};
 
 const setCurrentLobby = (data) => {
@@ -87,15 +86,37 @@ const placeBet = async (io, socket, [lobby_id, max_mult, status, user_id, operat
         await setCache(`${operator_id}:${user_id}`, JSON.stringify({ ...userData, balance }));
         betObj.balance = balance
         bets.push(betObj);
-        let playerDetails = { id: user_id, name, balance, avatar, operator_id: operator_id, game_id }
+        let playerDetails = { id: user_id, name, balance, avatar, operator_id: operator_id }
         logger.info(JSON.stringify({ req: data, res: betObj }));
         socket.emit("info", playerDetails);
-        return io.emit("bet", bets);
+        const cleanBetObj = cleanData(betObj, 'bet');
+        return io.emit("bet", cleanBetObj);
     } catch (error) {
         return logEventAndEmitResponse(socket, data, 'Something went wrong, while placing bet', 'bet');
     } finally {
         releaseLock();
     }
+}
+
+function cleanData(betObj, event) {
+    let clearBetObj = {
+        bet_id: betObj['bet_id'],
+        maxAutoCashout: betObj['maxAutoCashout']
+    };
+    if (event == 'bet') {
+        Object.assign(clearBetObj, {
+            name: betObj['name'][0] + '***' + betObj['name'][betObj['name'].length - 1],
+            avatar: betObj['avatar'],
+        })
+    };
+    if (event == 'cashout') {
+        Object.assign(clearBetObj, {
+            max_mult: betObj['max_mult'],
+            plane_status: betObj['plane_status'],
+            final_amount: betObj['final_amount']
+        })
+    }
+    return clearBetObj;
 }
 
 const removeBetObjAndEmit = async (bet_id, bet_amount, user_id, operator_id, socket_id, io) => {
@@ -109,7 +130,7 @@ const removeBetObjAndEmit = async (bet_id, bet_amount, user_id, operator_id, soc
             io.to(socket_id).emit("info", userData);
         }
         failedBetsLogger.error(JSON.stringify({ req: bet_id, res: 'bets cancelled by upstream' }));
-        io.emit("bet", bets);
+        io.emit("bet", { bet_id: bet_id, action: "cancel" });
     } catch (err) {
         console.error(`[ERR] while removing bet from betObj is::`, err);
     } finally {
@@ -172,8 +193,8 @@ const cancelBet = async (io, socket, [status, ...bet_id]) => {
     const [event, lobby_id, betAmount, userId, operatorId, identifierValue] = bet_id;
     bet_id = bet_id.join(':');
     let canObj = { status, bet_id };
-    if(lobbyData.lobbyId !== lobby_id && lobbyData.status != 0){
-        failedcancelledBetLogger.error(JSON.stringify({ req: canObj, res: "Round has been closed cancel bet event"}));
+    if (lobbyData.lobbyId !== lobby_id && lobbyData.status != 0) {
+        failedcancelledBetLogger.error(JSON.stringify({ req: canObj, res: "Round has been closed cancel bet event" }));
     }
     try {
         if (status != 0) return;
@@ -203,11 +224,11 @@ const cancelBet = async (io, socket, [status, ...bet_id]) => {
         }
         balance = (+balance + +bet_amount).toFixed(2);
         await setCache(`${operator_id}:${user_id}`, JSON.stringify({ ...userData, balance }));
-        let playerDetails = { id: user_id, name, balance, avatar, operator_id, game_id };
+        let playerDetails = { id: user_id, name, balance, avatar, operator_id };
         socket.emit("info", playerDetails);
         cancelBetsLogger.info(JSON.stringify({ req: canObj, res: betObj }));
         bets = bets.filter(e => e.bet_id !== bet_id);
-        return io.emit("bet", bets);
+        return io.emit("bet", { bet_id: bet_id, action: "cancel" });
 
     } catch (error) {
         console.error(error);
@@ -238,7 +259,7 @@ const acquireLock = async (user_id) => {
 let cashOutBets = [];
 const cashOut = async (io, socket, [max_mult, status, maxAutoCashout, ...betId], isAutoCashout = true) => {
     betId = betId.join(':');
-    if(cashOutBets.includes(betId)){
+    if (cashOutBets.includes(betId)) {
         return;
     }
     const CashObj = { max_mult, status, maxAutoCashout, betId, isAutoCashout };
@@ -248,10 +269,9 @@ const cashOut = async (io, socket, [max_mult, status, maxAutoCashout, ...betId],
     try {
         const betObj = bets.find(e => e.bet_id === betId);
         if (!betObj) return logEventAndEmitResponse(socket, CashObj, 'No active bet for the event', 'cashout');
-        const betObjCopy = betObj;
         Object.assign(betObj, { lobby_id, bet_amount, user_id, operator_id });
         max_mult = (betObj.maxAutoCashout !== 'null' && maxAutoCashout !== 'null') ? betObj.maxAutoCashout : max_mult;
-        betObj.maxAutoCashout = (maxAutoCashout === 'null') ? 'null' : Number(betObj.maxAutoCashout).toFixed(2);
+        betObj.maxAutoCashout = (maxAutoCashout === 'null') ? 'null' : betObj.maxAutoCashout;
 
 
         const userBets = bets.filter(e => e.token === betObj.token);
@@ -276,36 +296,24 @@ const cashOut = async (io, socket, [max_mult, status, maxAutoCashout, ...betId],
         let userData = await getUserData(user_id, operator_id);
         const key = `${operator_id}:${user_id}`;
         try {
-            const data = await postDataToSourceForBet({ webhookData, token, socket_id, bet_id: betId });
-            if (data.status === 200) {
-                cashoutLogger.info(JSON.stringify({req: CashObj, res:`User balance updated successfully for user id: ${user_id}`}));
-
-                // Update Redis cache
-                if (userData) {
-                    userData.balance = betObj.balance;
-                    await setCache(key, JSON.stringify(userData));
-                }
-            } else {
-                failedCashoutLogger.error(JSON.stringify({ req: CashObj, res: `Cashout event failed from upstream server`}));
+            await sendToQueue('', 'games_cashout', JSON.stringify({...webhookData, token: betObj.token, operatorId: operator_id}));
+            if (userData) {
+                userData.balance = betObj.balance;
+                await setCache(key, JSON.stringify(userData));
             }
         } catch (err) {
-            if (err.response?.data?.msg === "Invalid Token or session timed out") {
-                await deleteCache(key);
-                betObj = betObjCopy;
-                failedCashoutLogger.error(JSON.stringify({ req: CashObj, res: 'Invalid Token or session timed out' }));
-                return io.to(socket_id).emit("logout", user_id);
-            }
-            failedCashoutLogger.error(JSON.stringify({ req: CashObj, res: `Cashout event failed from upstream server`}));
+            failedCashoutLogger.error(JSON.stringify({ req: CashObj, res: 'Error sending to queue' }));
         }
 
         // Emit events
-        socket.emit("info", { id: user_id, name: betObj.name, balance: betObj.balance, avatar: betObj.avatar, operator_id, game_id: betObj.game_id });
+        socket.emit("info", { id: user_id, name: betObj.name, balance: betObj.balance, avatar: betObj.avatar, operator_id });
         settlements.push(betObj);
         cashoutLogger.info(JSON.stringify({ req: CashObj, res: betObj }));
-        const user_settlements = settlements.filter(e => e.token === token && e.plane_status === 'cashout');
+        const user_settlements = (settlements.filter(e => e.token === token && e.plane_status === 'cashout')).map(e => cleanData(e, 'cashout'));
         cashOutBets.push(betId);
         io.to(socket_id).emit('singleCashout', user_settlements);
-        io.emit("cashout", settlements);
+        const cleanSettlementObj = cleanData(betObj, "cashout")
+        io.emit("cashout", cleanSettlementObj);
         if (!userData) {
             try {
                 userData = await getDataForSession({ token: betObj.token, game_id: betObj.game_id }, betObj.socket_id);
@@ -322,6 +330,7 @@ const cashOut = async (io, socket, [max_mult, status, maxAutoCashout, ...betId],
         }
 
     } catch (error) {
+        console.log(error)
         return logEventAndEmitResponse(socket, CashObj, 'Something went wrong, while trying to Cashout', 'cashout');
     } finally {
         releaseLock();
@@ -343,13 +352,12 @@ const settleBet = async (io, data) => {
                         await cashOut(io, socket, [autoCashout, '1', autoCashout, b, lobby_id, bet_amount, user_id, operator_id, identifier], false);
                         return;
                     } else {
-                        settlBetLogger.warn(JSON.stringify({req: betObj, res: `Socket not found for socket_id: ${betObj.socket_id}`}));
+                        settlBetLogger.warn(JSON.stringify({ req: betObj, res: `Socket not found for socket_id: ${betObj.socket_id}` }));
                     }
                 }
                 Object.assign(betObj, { lobby_id, bet_amount, user_id, operator_id, max_mult: (+data.max_mult).toFixed(2), plane_status: "crashed", final_amount: 0, amount: bet_amount });
                 settlBetLogger.info(JSON.stringify(betObj));
                 settlements.push(betObj);
-                io.to(betObj.socket_id).emit('crashed', [betObj]);
                 updatedBets.push(betObj);
             }));
             await addSettleBet(updatedBets); // Insert Data into Databases

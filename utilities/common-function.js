@@ -26,7 +26,7 @@ const postDataToSourceForBet = async (data) => {
             const url = process.env.service_base_url;
             let clientServerOptions = {
                 method: 'POST',
-                url: `${url}/service/operator/user/balance`,
+                url: `${url}/service/operator/user/balance/v2`,
                 headers: {
                     token
                 },
