@@ -1,23 +1,45 @@
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const { settleBet, settleCallBacks, setCurrentLobby } = require('../bets/bets-message');
+const { settleBet, settleCallBacks, setCurrentLobby , getCurrentLobby } = require('../bets/bets-message');
 const { getPlayerCount } = require('../players/player-message');
 const { insertLobbies } = require('./plane-db');
 const createLogger = require('../../utilities/logger');
 const logger = createLogger('Plane', 'jsonl');
 const {read} = require('../../utilities/db-connection');
+const planeErrorLogger = createLogger('PlaneError', 'log');
+
+const checkPlaneHealth =()=> setInterval(()=>{
+    const {lobbyId, status} = getCurrentLobby();
+    if(isNaN(Number(lobbyId))){
+        planeErrorLogger.error(`Invalid Lobby id got ${lobbyId}. Exiting.. LobbyData is ${JSON.stringify(getCurrentLobby())}`);
+        process.exit(1);
+    }
+    const timeDiff = (Date.now() - Number(lobbyId))/1000;
+    if(status ===0 && timeDiff > 60){
+        planeErrorLogger.error(`Lobby Timed Out ${lobbyId}. Exiting.. LobbyData is ${JSON.stringify(getCurrentLobby())}`);
+        process.exit(1);
+    }
+    if(timeDiff > 240){
+        planeErrorLogger.error(`Lobby Taking too much time ${lobbyId}. LobbyData is ${JSON.stringify(getCurrentLobby())}`);
+    }
+    if(timeDiff > 600){
+        planeErrorLogger.error(`Exiting Lobby as it took more than 5 minutes ${lobbyId}. LobbyData is ${JSON.stringify(getCurrentLobby())}`);
+        process.exit(1);
+    }
+},1000);
 
 const initPlane = async (io) => {
     logger.info("lobby started");
     initLobby(io);
+    checkPlaneHealth();
 }
 
-let odds = {}
+let odds = {};
 
 const initLobby = async (io) => {
-    await getMaxMultOdds(io);
     const lobbyId = Date.now();
     let recurLobbyData = { lobbyId, status: 0, isWebhook: 0}
     setCurrentLobby(recurLobbyData);
+    await getMaxMultOdds(io);
     odds.lobby_id = lobbyId;
     odds.start_time = Date.now();
     const start_delay = 7;
@@ -25,7 +47,9 @@ const initLobby = async (io) => {
     const end_delay = 2;
     odds.total_players = await getPlayerCount();
     const max_mult = generateOdds().mult;
-    // const max_mult = 120;
+
+    // const max_mult = 50;
+
     for (let x = 0; x < start_delay; x++) {
         io.emit("plane", `${lobbyId}:${inc}:0`);
         inc++
@@ -38,7 +62,7 @@ const initLobby = async (io) => {
 
     await settleCallBacks(io);
 
-    await sleep(1000);
+    await sleep(2000);
 
     let init_val = 1;
     recurLobbyData['status'] = 1;
@@ -56,7 +80,8 @@ const initLobby = async (io) => {
         else {
             init_val = init_val * 1.005;
         }
-
+        recurLobbyData['ongoingMaxMult'] = init_val.toFixed(2);
+        setCurrentLobby(recurLobbyData);
         await sleep(100)
     } while (init_val < max_mult);
     odds.max_mult = max_mult
@@ -73,7 +98,6 @@ const initLobby = async (io) => {
     odds = {}
     const history = { time: new Date(), lobbyId, start_delay, end_delay, max_mult };
     io.emit("history", JSON.stringify(history));
-    setCurrentLobby({});
     logger.info(JSON.stringify(history));
     await insertLobbies(history);
     return initLobby(io);
@@ -89,24 +113,20 @@ const getMaxMultOdds = async (io) => {
     }
 }
 
-
-
-
-
-
-
-//---------------------------
-// const fs = require('fs');
-
 const RTP = 9400;// Return to player 97.00%
-
 
 function generateOdds() {
     const win_per = (Math.random() * 99.00);
-    //   const win_per = 99.01;
     let mult = (RTP) / (win_per * 100)
     if (mult < 1.01) {
         mult = 1.00
+    }
+    else if(mult > 20) {
+        const highMultRng = (Math.random());
+        if(highMultRng < 0.3) mult = generateOdds().mult;
+    }
+    else if (mult > 100000){
+        mult = 100000;
     }
     return ({ win_per, mult });
 }
