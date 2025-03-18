@@ -116,3 +116,5 @@ ALTER TABLE `jetx_game`.`user_messages` ADD INDEX `user_id_index` (`user_id` ASC
 
 ALTER TABLE `jetx_game`.`bets` ADD COLUMN `auto_cashout` DECIMAL(10, 2) NULL DEFAULT NULL AFTER `bet_amount`;
 ALTER TABLE `jetx_game`.`settlement` ADD COLUMN `auto_cashout` DECIMAL(10, 2) NULL DEFAULT NULL AFTER `bet_amount`;
+
+ALTER TABLE settlement ADD COLUMN `win_amount` decimal(10, 2) default 0.00 after `max_mult`;
