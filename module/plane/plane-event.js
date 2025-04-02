@@ -113,7 +113,7 @@ const getMaxMultOdds = async (io) => {
     }
 }
 
-const RTP = 9400;// Return to player 97.00%
+const RTP = 9600;// Return to player 96.00%
 
 function generateOdds() {
     const win_per = (Math.random() * 99.00);
