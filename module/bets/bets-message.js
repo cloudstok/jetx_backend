@@ -80,7 +80,7 @@ const placeBet = async (io, socket, [lobby_id, max_mult, status, user_id, operat
         let { name, balance, avatar, session_token, game_id, id } = userData;
         const betObj = { bet_id, name, balance, avatar, token: session_token, maxAutoCashout, socket_id: socket.id, game_id };
         if (bet_amount && bet_amount > +balance) {
-            return logEventAndEmitResponse(socket, data, 'Insufficient Balance', 'bet');
+            return logEventAndEmitResponse(socket, data, `Insufficient Balance ${bet_id}`, 'bet');
         }
         const webhookData = await prepareDataForWebhook({ ...betObj, bet_amount, lobby_id, user_id }, "DEBIT", socket);
         betObj.webhookData = webhookData;
