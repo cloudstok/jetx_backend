@@ -283,13 +283,13 @@ const acquireLock = async (user_id) => {
 
 
 let cashOutBets = [];
-const cashOut = async (io, socket, [max_mult, status, maxAutoCashout, ...betId], isAutoCashout = true) => {
+const cashOut = async (io, socket, [max_mult, status, maxAutoCashout, isAutoCashout, ...betId]) => {
     betId = betId.join(':');
     if (cashOutBets.includes(betId)) {
         return;
     }
     const CashObj = { max_mult, status, maxAutoCashout, betId, isAutoCashout };
-    if (lobbyData.status != 1 && isAutoCashout) return logEventAndEmitResponse(socket, CashObj, 'Round has been closed for cashout event', 'cashout');
+    if (lobbyData.status != 1 && Number(isAutoCashout)) return logEventAndEmitResponse(socket, CashObj, 'Round has been closed for cashout event', 'cashout');
     let [b, lobby_id, bet_amount, user_id, operator_id, identifier] = betId.split(":");
     const releaseLock = await acquireLock(`${operator_id}:${user_id}`);
     try {
@@ -378,7 +378,7 @@ const settleBet = async (io, data) => {
 
                     if (socket) {
                         let autoCashout = betObj.maxAutoCashout;
-                        await cashOut(io, socket, [autoCashout, '1', 'null', b, lobby_id, bet_amount, user_id, operator_id, identifier], false);
+                        await cashOut(io, socket, [autoCashout, '1', 'null', 0, b, lobby_id, bet_amount, user_id, operator_id, identifier]);
                         return;
                     } else {
                         settlBetLogger.warn(JSON.stringify({ req: betObj, res: `Socket not found for socket_id: ${betObj.socket_id}` }));
@@ -440,7 +440,7 @@ const disConnect = async(io, socket) => {
     if(bets.length > 0){
         await Promise.all(bets.map(async bet=> {
             if(!bet.hasOwnProperty('plane_status') && bet.socket_id == socket.id && lobbyData['status'] == '1'){
-                await cashOut(io, socket, [lobbyData['ongoingMaxMult'], lobbyData['status'], bet.maxAutoCashout, ...bet.bet_id.split(':')]);
+                await cashOut(io, socket, [lobbyData['ongoingMaxMult'], lobbyData['status'], bet.maxAutoCashout, 1, ...bet.bet_id.split(':')]);
             };
         }));
         if(lobbyData['status'] == '0'){
