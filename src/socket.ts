@@ -1,5 +1,5 @@
 import { Server, Socket } from 'socket.io';
-import { getUserDataFromSource, reducePlayerCount } from './module/players/player-event';
+import { getUserDataFromSource } from './module/players/player-event';
 import { eventRouter } from './router/event-router';
 import { messageRouter } from './router/message-router';
 import { setCache } from './utilities/redis-connection';
