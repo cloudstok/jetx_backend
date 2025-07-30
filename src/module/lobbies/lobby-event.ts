@@ -5,11 +5,13 @@ import { insertLobbies } from "./lobbies-db";
 import { createLogger } from "../../utilities/logger";
 import { read } from "../../utilities/db-connection";
 import { GeneratedOdds, LobbyData, LobbyHistory, OddsData } from "../../types";
+import { LobbiesMult } from "../../interfaces";
+
 const logger = createLogger('Plane', 'jsonl');
 const planeErrorLogger = createLogger('PlaneError', 'plain');
 
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
-let lobbiesMult: string[] | undefined = [];
+let lobbiesMult: LobbiesMult[] | undefined = [];
 let betCount: number = 0;
 
 export function getLobbiesMult() { return lobbiesMult };
@@ -127,17 +129,18 @@ const initLobby = async (io: Server): Promise<void> => {
 
     io.emit("history", JSON.stringify(history));
     if (lobbiesMult && lobbiesMult?.length >= 30) lobbiesMult?.pop();
-    if (lobbiesMult) lobbiesMult = [Number(history.max_mult).toFixed(2), ...lobbiesMult];
+    if (lobbiesMult) lobbiesMult = [{ max_mult: history.max_mult.toFixed(2), created_at: history.time.toISOString() }, ...lobbiesMult];
+
     logger.info(JSON.stringify(history));
     await insertLobbies(history);
 
     return initLobby(io);
 };
 
-export const getMaxMultOdds = async (): Promise<string[] | undefined> => {
+export const getMaxMultOdds = async (): Promise<LobbiesMult[] | undefined> => {
     try {
-        const odds = await read('SELECT max_mult from lobbies order by created_at desc limit 30');
-        const oddsData = odds.map(e => e.max_mult);
+        const odds = await read('SELECT max_mult, created_at from lobbies order by created_at desc limit 30');
+        const oddsData = odds.map(e => { return { max_mult: e.max_mult, created_at: e.created_at } });
         return oddsData;
     } catch (err) {
         console.error(err);
