@@ -2,7 +2,7 @@ import axios from 'axios';
 import { FinalUserData, RawUserData } from '../../interfaces';
 import { Server } from 'socket.io';
 
-let playerCount = 0;
+let playerCount = Math.floor(Math.random() * 500) + 300;
 
 function getImageValue(id: string): number {
   let sum = 0;
@@ -51,16 +51,16 @@ export const getUserDataFromSource = async (
 };
 
 export const getPlayerCount = async (): Promise<number> => {
-    return playerCount;
+  return playerCount;
 };
 
-export const reducePlayerCount = () =>  playerCount--;
+export const reducePlayerCount = () => playerCount--;
 
 export const initPlayerBase = async (io: Server): Promise<void> => {
-    try {
-        io.emit("playerCount", `${playerCount}`);
-        setTimeout(() => initPlayerBase(io), 1000);
-    } catch (err) {
-        console.error(err);
-    }
+  try {
+    io.emit("playerCount", `${playerCount}`);
+    setTimeout(() => initPlayerBase(io), 1000);
+  } catch (err) {
+    console.error(err);
+  }
 };
