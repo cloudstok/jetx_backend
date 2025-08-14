@@ -24,8 +24,7 @@ function calculateCrashPoint(hash: string): number {
     if (h % 25n === 0n) return 1.00;
     const e = BigInt(2) ** BigInt(52);
     const result = (BigInt(100) * e) / (h + 1n);
-    // return Number(result) / 100;
-    return 2.5
+    return Number(result) / 100;
 }
 
 export const createRoundHashes = () => {
