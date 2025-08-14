@@ -21,13 +21,16 @@ export type LobbyHistory = {
     start_delay: number;
     end_delay: number;
     max_mult: number;
+    hashedSeed: string;
+    serverSeed: string;
+    client_seeds: Record<string, string>;
 };
 
 export type TransactionType = 'DEBIT' | 'CREDIT';
 export type EventType = 'bet' | 'cancelledBet' | 'cashout' | 'settlement';
 export type BetResponse = string | Record<string, unknown>;
 export type CleanedData = CleanedBet | CleanedCashout;
-export type BetMessageArgs = [...number[]];
+export type BetMessageArgs = [number, number, number, number, string];
 export type CashoutMessageArgs = [number, number, number, ...string[]];
 export type CancelBetMessageArgs = [...string[]];
 export type GeneratedOdds = {

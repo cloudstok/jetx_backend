@@ -10,6 +10,9 @@ import { logEventAndEmitResponse } from '../../utilities/helper-function';
 import { prepareDataForWebhook, postDataToSourceForBet } from '../../utilities/common-function';
 import { insertBets, insertCashout, insertSettleBet } from './bets-db';
 import { sendToQueue } from '../../utilities/amqp';
+import { generateClientSeed } from '../game/game-logic';
+import { roundHashes } from '../lobbies/lobby-event';
+import { inPlayUser } from '../../socket';
 
 const logger: Logger = createLogger('Bets', 'jsonl');
 const cashoutLogger: Logger = createLogger('Cashout', 'jsonl');
@@ -75,10 +78,11 @@ const acquireLock = async (user_id: string): Promise<() => void> => {
 export const placeBet = async (
     io: Server,
     socket: Socket,
-    [lobby_id, atCo, btAmt, btn]: BetMessageArgs
+    [lobby_id, atCo, btAmt, btn, seed]: BetMessageArgs
 ): Promise<void> => {
 
     [lobby_id, atCo, btAmt, btn] = [lobby_id, atCo, btAmt, btn].map(Number);
+    seed = !seed || seed == 'null' ? generateClientSeed() : seed;
     const rawData = { lobby_id, atCo, bet_amount: btAmt, btn, socket_id: socket.id };
 
     if (lobbyData.lobbyId !== lobby_id) {
@@ -109,6 +113,7 @@ export const placeBet = async (
             bet_id,
             name,
             balance,
+            hash: seed,
             user_id: userId,
             operator_id: operatorId,
             image,
@@ -222,13 +227,15 @@ export const settleCallBacks = async (io: Server): Promise<void> => {
 
         const processResultsPromises = results.map(result => {
             if (result.status === 'fulfilled') {
+                if (Object.keys(roundHashes).length < 3) {
+                    roundHashes[result.value.user_id] = result.value.hash;
+                }
                 return handleFulfilledResult(result.value as FulfilledBetResult, io);
             } else {
                 console.error(`Error processing bet: ${JSON.stringify(result.reason)}`);
                 return handleRejectedResult(result.reason as BetRejectionError, io);
             }
         });
-
         await Promise.allSettled(processResultsPromises);
 
     } catch (err) {
@@ -349,7 +356,6 @@ export const cancelBet = async (io: Server, socket: Socket, [...betIdParts]: Can
         cancelBetsLogger.info(JSON.stringify({ req: canObj, res: betObj }));
         bets = bets.filter(e => e.bet_id !== bet_id);
         io.emit("bet", { bet_id: bet_id, action: "cancel" });
-
     } catch (error) {
         console.error('Cancel bet error:', error);
         logEventAndEmitResponse(socket, canObj, 'Something went wrong while cancelling the bet', 'cancelledBet');
@@ -549,8 +555,15 @@ const createRoundStats = (roundData: RoundData, currentRoundSettlements: Settlem
 };
 
 export const disConnect = async (io: Server, socket: Socket): Promise<void> => {
-
     const userActiveBets = bets.filter(bet => bet.socket_id === socket.id && !bet.plane_status);
+    const cachedPlayerDetails = await getCache(`PL:${socket.id}`);
+    if (!cachedPlayerDetails) {
+        socket.emit('betError', 'Invalid Player Details');
+        return;
+    }
+    const parsedPlayerDetails: FinalUserData = JSON.parse(cachedPlayerDetails);
+    console.log("socket disconnected", parsedPlayerDetails.user_id);
+    inPlayUser.delete(parsedPlayerDetails.id);
 
     if (userActiveBets.length > 0) {
         if (lobbyData.status === 1 && lobbyData.ongoingMaxMult) {
@@ -568,12 +581,13 @@ export const disConnect = async (io: Server, socket: Socket): Promise<void> => {
             logger.info(`Bets cancelled due to disconnect during betting phase for socket ${socket.id}: ${betsToCancelOnDisconnect.join(', ')}`);
         } else if (lobbyData.status == 0 && lobbyData.isWebhook) {
             await Promise.all(userActiveBets.map(async bet => {
-                setTimeout(async() => await cashOut(io, socket, [1.00, bet.atCo, 0, ...bet.bet_id.split(':')]), 100);
+                setTimeout(async () => await cashOut(io, socket, [1.00, bet.atCo, 0, ...bet.bet_id.split(':')]), 100);
             }));
         }
     };
+
     reducePlayerCount();
-    setTimeout(async() => await deleteCache(`PL:${socket.id}`), 200);
+    setTimeout(async () => await deleteCache(`PL:${socket.id}`), 200);
 };
 
 export const getCurrentLobby = (): LobbyData => lobbyData;

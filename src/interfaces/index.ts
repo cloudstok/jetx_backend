@@ -1,12 +1,12 @@
 export interface LobbiesMult {
-    max_mult: number | string;
+    lobbyId: number;
+    round_max_mult: number | string;
     created_at: string;
-}
-export interface GameResult {
-    jkr: string;
-    andr: string[];
-    bahar: string[];
-    winner: null | 1 | 2;
+    client_seeds: Record<string, string>;
+    serverSeed: string;
+    hashedSeed: string;
+    hex: string;
+    decimal: number;
 }
 
 export type BetResult = {
@@ -25,7 +25,6 @@ export interface RawUserData {
 };
 
 export interface FinalUserData extends RawUserData {
-    userId: string;
     id: string;
     game_id: string;
     token: string;
@@ -106,15 +105,6 @@ export interface LobbiesData {
     status: number;
 };
 
-export type Suit = 'H' | 'D' | 'C' | 'S';
-export type Value = 'A' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K';
-
-export interface Card {
-    value: Value;
-    suit: Suit;
-}
-
-
 //==========New Interfaces
 
 export interface CashoutData {
@@ -123,6 +113,7 @@ export interface CashoutData {
     max_mult?: string;
     bet_id: string;
     atCo: number;
+    hash: string;
     final_amount?: string;
 };
 
@@ -132,6 +123,7 @@ export interface SettlementData {
     image: number;
     max_mult?: string;
     atCo: number;
+    hash: string;
 };
 
 export interface RoundStats {
@@ -153,6 +145,7 @@ export interface InsertBetData {
     name: string;
     image: number;
     atCo?: number;
+    hash: string;
 };
 
 export interface UserData {
@@ -172,6 +165,7 @@ export interface Bet {
     image: number;
     token: string;
     atCo: number;
+    hash: string;
     socket_id: string;
     game_id: string;
     webhookData?: WebhookPreparedData;
@@ -260,6 +254,7 @@ export interface FulfilledBetResult {
     bet_id: string;
     name: string;
     image: number;
+    hash: string;
     [key: string]: any;
 };
 
@@ -285,6 +280,9 @@ export interface LobbyInsertData {
     start_delay: number;
     end_delay: number;
     max_mult: number;
+    serverSeed: string;
+    hashedSeed: string;
+    client_seeds: Record<string, string>;
 };
 
 export interface DBConfig {

@@ -4,11 +4,13 @@ import { getPlayerCount } from "../players/player-event";
 import { insertLobbies } from "./lobbies-db";
 import { createLogger } from "../../utilities/logger";
 import { read } from "../../utilities/db-connection";
-import { GeneratedOdds, LobbyData, LobbyHistory, OddsData } from "../../types";
+import { LobbyData, LobbyHistory, OddsData } from "../../types";
 import { LobbiesMult } from "../../interfaces";
-
+import { createRoundHashes, generateCrashMult, generateServerSeed } from "../game/game-logic";
+export let roundHashes: Record<string, string> = {};
 const logger = createLogger('Plane', 'jsonl');
 const planeErrorLogger = createLogger('PlaneError', 'plain');
+export let roundServerSeed = '';
 
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 let lobbiesMult: LobbiesMult[] | undefined = [];
@@ -44,9 +46,13 @@ const checkPlaneHealth = (): NodeJS.Timeout => setInterval(() => {
 export const initPlane = async (io: Server): Promise<void> => {
     logger.info("lobby started");
     initLobby(io);
+    updateServerSeed();
+    io.emit('rndSd', roundServerSeed);
     checkPlaneHealth();
     lobbiesMult = await getMaxMultOdds();
 };
+
+const updateServerSeed = () => roundServerSeed = generateServerSeed();
 
 let odds: OddsData = {};
 
@@ -65,7 +71,6 @@ const initLobby = async (io: Server): Promise<void> => {
     const end_delay = 6;
 
     odds.total_players = await getPlayerCount();
-    const max_mult = generateOdds().mult;
 
     for (let x = 0; x < start_delay; x++) {
         io.emit("plane", `${lobbyId}:${inc}:0`);
@@ -74,12 +79,21 @@ const initLobby = async (io: Server): Promise<void> => {
     }
 
     io.emit("plane", `${lobbyId}:PROCESSING:0`);
-    recurLobbyData.max_mult = max_mult;
+
     recurLobbyData.isWebhook = 1;
     setCurrentLobby(recurLobbyData);
 
     await settleCallBacks(io);
     await sleep(3000);
+
+    createRoundHashes();
+    const { serverSeed, hashedSeed, max_mult } = generateCrashMult();
+
+    updateServerSeed();
+    io.emit('rndSd', roundServerSeed);
+
+    recurLobbyData.max_mult = max_mult;
+    const hex = hashedSeed.slice(0, 13);
 
     let init_val = 1;
     recurLobbyData.status = 1;
@@ -124,43 +138,41 @@ const initLobby = async (io: Server): Promise<void> => {
         lobbyId,
         start_delay,
         end_delay,
-        max_mult
+        max_mult,
+        hashedSeed,
+        serverSeed,
+        client_seeds: roundHashes
     };
 
-    io.emit("history", JSON.stringify(history));
+    const clientSeeds: { [key: string]: string } = {};
+    for (const seed in roundHashes) {
+        clientSeeds[`${seed[0]}***${seed.slice(-1)}`] = roundHashes[seed];
+    };
+
     if (lobbiesMult && lobbiesMult?.length >= 30) lobbiesMult?.pop();
-    if (lobbiesMult) lobbiesMult = [{ max_mult: history.max_mult.toFixed(2), created_at: history.time.toISOString() }, ...lobbiesMult];
+    if (lobbiesMult) lobbiesMult = [{ lobbyId, round_max_mult: history.max_mult.toFixed(2), created_at: history.time.toISOString(), client_seeds: clientSeeds, hashedSeed, serverSeed, hex, decimal: Number(BigInt('0x' + hex)) }, ...lobbiesMult];
 
     logger.info(JSON.stringify(history));
     await insertLobbies(history);
-
+    roundHashes = {};
     return initLobby(io);
+
 };
 
 export const getMaxMultOdds = async (): Promise<LobbiesMult[] | undefined> => {
     try {
-        const odds = await read('SELECT max_mult, created_at from lobbies order by created_at desc limit 30');
-        const oddsData = odds.map(e => { return { max_mult: e.max_mult, created_at: e.created_at } });
+        const odds = await read('SELECT lobby_id, max_mult, created_at, client_seeds, server_seed, hash from lobbies order by created_at desc limit 30');
+        const oddsData = odds.map(e => {
+            const { hash, max_mult, created_at, client_seeds, server_seed, lobby_id } = e;
+            const hex = hash.slice(0, 13);
+            const clientSeeds: { [key: string]: string } = {};
+            for (const seed in client_seeds) {
+                clientSeeds[`${seed[0]}***${seed.slice(-1)}`] = client_seeds[seed];
+            }
+            return { lobbyId: lobby_id, round_max_mult: max_mult, created_at, client_seeds: clientSeeds, serverSeed: server_seed, hashedSeed: hash, hex, decimal: Number(BigInt('0x' + hex)) }
+        });
         return oddsData;
     } catch (err) {
         console.error(err);
     }
 };
-
-const RTP = 9700;
-
-function generateOdds(): GeneratedOdds {
-    const win_per = Math.random() * 99.00;
-    let mult = RTP / (win_per * 100);
-
-    if (mult < 1.01) {
-        mult = 1.00;
-    } else if (mult > 20) {
-        const highMultRng = Math.random();
-        if (highMultRng < 0.5) mult = generateOdds().mult;
-    } else if (mult > 100000) {
-        mult = 100000;
-    }
-
-    return { win_per, mult };
-}

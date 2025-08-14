@@ -2,13 +2,13 @@ import { CashoutData, InsertBetData, RoundStats, SettlementData } from '../../in
 import { write } from '../../utilities/db-connection';
 
 const SQL_CASHOUT =
-  "INSERT INTO settlement(bet_id, lobby_id, name, user_id, operator_id, bet_amount, auto_cashout, avatar, max_mult, win_amount, status) VALUES(?,?,?,?,?,?,?,?,?,?,?)";
+  "INSERT INTO settlement(bet_id, lobby_id, name, user_id, operator_id, hash, bet_amount, auto_cashout, avatar, max_mult, win_amount, status) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)";
 
 const SQL_ROUND_STATS =
   "INSERT INTO round_stats (lobby_id, start_time, total_players , max_mult, end_time, total_bets, total_bet_amount, total_cashout_amount, biggest_winner, biggest_looser, total_round_settled) VALUES (?,?,?,?,?,?,?,?,?,?,?)";
 
 const SQL_INSERT_BETS =
-  'INSERT INTO bets (bet_id, lobby_id, name, user_id, operator_id, bet_amount, auto_cashout, avatar) VALUES(?,?,?,?,?,?,?,?)';
+  'INSERT INTO bets (bet_id, lobby_id, name, user_id, operator_id, bet_amount, auto_cashout, avatar, hash) VALUES(?,?,?,?,?,?,?,?,?)';
 
 
 export const insertCashout = async (data: CashoutData): Promise<void> => {
@@ -20,6 +20,7 @@ export const insertCashout = async (data: CashoutData): Promise<void> => {
       bet_id,
       atCo,
       final_amount,
+      hash
     } = data;
 
     const [b, lobby_id, bet_amount, user_id, operator_id, btn] = bet_id.split(':');
@@ -30,7 +31,8 @@ export const insertCashout = async (data: CashoutData): Promise<void> => {
       name,
       decodeURIComponent(user_id),
       operator_id,
-      parseFloat(bet_amount),
+      hash,
+      Number(bet_amount),
       atCo || 0.00,
       image,
       max_mult,
@@ -62,6 +64,7 @@ export const insertSettleBet = async (data: SettlementData[]): Promise<void> => 
           max_mult,
           image,
           atCo,
+          hash,
         } = x;
 
         const [b, lobby_id, bet_amount, user_id, operator_id, btn] = bet_id.split(':');
@@ -72,7 +75,8 @@ export const insertSettleBet = async (data: SettlementData[]): Promise<void> => 
           name,
           decodeURIComponent(user_id),
           operator_id,
-          parseFloat(bet_amount),
+          hash,
+          Number(bet_amount),
           atCo || 0.00,
           image,
           max_mult,
@@ -81,8 +85,8 @@ export const insertSettleBet = async (data: SettlementData[]): Promise<void> => 
         ];
       });
 
-      const placeholders = finalData.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(',');
-      const SQL_SETTLEMENT = `INSERT INTO settlement (bet_id, lobby_id, name, user_id, operator_id, bet_amount, auto_cashout, avatar, max_mult, win_amount, status) VALUES ${placeholders}`;
+      const placeholders = finalData.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(',');
+      const SQL_SETTLEMENT = `INSERT INTO settlement (bet_id, lobby_id, name, user_id, operator_id, hash, bet_amount, auto_cashout, avatar, max_mult, win_amount, status) VALUES ${placeholders}`;
       const flattenedData = finalData.flat();
 
       await write(SQL_SETTLEMENT, flattenedData);
@@ -132,11 +136,11 @@ export const insertRoundStats = async (data: RoundStats): Promise<void> => {
 
 export const insertBets = async (betData: InsertBetData): Promise<void> => {
   try {
-    let { bet_id, name, image, atCo } = betData;
+    let { bet_id, name, image, atCo, hash } = betData;
 
 
-    const [b, lobby_id, bet_amount, user_id, operator_id, btn] = bet_id.split(':');
-    if (!bet_id || !lobby_id || !bet_amount || !user_id || !operator_id) {
+    const [b, lobby_id, bet_amount, user_id, operator_id] = bet_id.split(':');
+    if (!bet_id || !lobby_id || !bet_amount || !user_id || !operator_id || !hash) {
       throw new Error('Invalid bet_id format.');
     }
 
@@ -146,9 +150,10 @@ export const insertBets = async (betData: InsertBetData): Promise<void> => {
       name,
       decodeURIComponent(user_id),
       operator_id,
-      parseFloat(bet_amount),
+      Number(bet_amount),
       atCo || 0.00,
-      image
+      image,
+      hash
     ]);
 
     console.info(`Bet placed successfully for user`, user_id);
