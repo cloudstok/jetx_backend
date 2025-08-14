@@ -84,7 +84,7 @@ export const prepareDataForWebhook = async (
 
         switch (key) {
             case 'DEBIT':
-                obj.description = `${obj.amount} debited for JetX game for Round ${lobby_id}`;
+                obj.description = `${obj.amount} debited for JetX 2.0 game for Round ${lobby_id}`;
                 obj.bet_id = bet_id;
                 obj.socket_id = socket_id;
                 obj.txn_type = 0;
@@ -93,7 +93,7 @@ export const prepareDataForWebhook = async (
             case 'CREDIT':
                 obj.amount = final_amount;
                 obj.txn_ref_id = webhookData.txn_id;
-                obj.description = `${final_amount} credited for JetX game for Round ${lobby_id}`;
+                obj.description = `${final_amount} credited for JetX 2.0 game for Round ${lobby_id}`;
                 obj.txn_type = 1;
                 break;
         }
