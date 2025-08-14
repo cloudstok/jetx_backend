@@ -1,6 +1,6 @@
 import { Server } from "socket.io";
 import { settleBet, settleCallBacks, setCurrentLobby, getCurrentLobby } from "../bets/bets-session";
-import { getPlayerCount } from "../players/player-event";
+import { playerCount } from "../players/player-event";
 import { insertLobbies } from "./lobbies-db";
 import { createLogger } from "../../utilities/logger";
 import { read } from "../../utilities/db-connection";
@@ -70,7 +70,7 @@ const initLobby = async (io: Server): Promise<void> => {
     let inc = 1;
     const end_delay = 6;
 
-    odds.total_players = await getPlayerCount();
+    odds.total_players = playerCount;
 
     for (let x = 0; x < start_delay; x++) {
         io.emit("plane", `${lobbyId}:${inc}:0`);

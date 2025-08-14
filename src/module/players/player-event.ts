@@ -2,8 +2,7 @@ import axios from 'axios';
 import { FinalUserData, RawUserData } from '../../interfaces';
 import { Server, Socket } from 'socket.io';
 import { getCache, setCache } from '../../utilities/redis-connection';
-
-let playerCount = 0;
+export let playerCount = 0;
 
 function getImageValue(id: string): number {
   let sum = 0;
@@ -51,9 +50,8 @@ export const getUserDataFromSource = async (
   }
 };
 
-export const getPlayerCount = async (): Promise<number> => {
+export function generatePlayerCount() {
   playerCount = Math.floor(Math.random() * (3000 - 600 + 1)) + 600;
-  return playerCount;
 };
 
 export const updateAvatar = async (socket: Socket, image: number) => {
