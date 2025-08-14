@@ -42,6 +42,6 @@ export function generateCrashMult(): {
     const serverSeed = roundServerSeed;
     const combinedSeed = getCombinedSeed(serverSeed, Object.values(roundHashes));
     const hashedSeed = sha512(combinedSeed);
-    const max_mult = 10 //calculateCrashPoint(hashedSeed);
+    const max_mult = calculateCrashPoint(hashedSeed);
     return { serverSeed, hashedSeed, max_mult }
 };
