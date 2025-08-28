@@ -21,7 +21,7 @@ function sha512(input: crypto.BinaryLike) {
 
 function calculateCrashPoint(hash: string): number {
     const h = BigInt('0x' + hash.slice(0, 13));
-    if (h % 22n === 0n) return 1.00;
+    if (h % 26n === 0n) return 1.00;
     const e = BigInt(2) ** BigInt(52);
     const result = (BigInt(100) * e) / (h + 1n);
     return Number(result) / 100;

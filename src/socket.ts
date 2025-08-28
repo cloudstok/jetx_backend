@@ -5,7 +5,7 @@ import { messageRouter } from './router/message-router';
 import { setCache } from './utilities/redis-connection';
 import { getBetCount, getLobbiesMult } from './module/lobbies/lobby-event';
 import { currentRoundBets } from './module/bets/bets-session';
-export const inPlayUser: Map<string, string> = new Map();
+export const inPlayUser: Set<string> = new Set();
 
 export const initSocket = (io: Server): void => {
   eventRouter(io);
@@ -29,7 +29,7 @@ export const initSocket = (io: Server): void => {
       return;
     };
 
-    const isUserConnected = inPlayUser.get(userData.id);
+    const isUserConnected = inPlayUser.has(userData.id);
     if (isUserConnected) {
       socket.emit('betError', 'User already connected, disconnecting...');
       socket.disconnect(true);
@@ -47,7 +47,7 @@ export const initSocket = (io: Server): void => {
     );
 
     await setCache(`PL:${socket.id}`, JSON.stringify({ ...userData, socketId: socket.id }), 3600);
-    inPlayUser.set(userData.id, token);
+    inPlayUser.add(userData.id);
 
     messageRouter(io, socket);
     socket.emit('betCount', getBetCount());
