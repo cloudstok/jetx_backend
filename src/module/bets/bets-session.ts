@@ -12,7 +12,6 @@ import { insertBets, insertCashout, insertSettleBet } from './bets-db';
 import { sendToQueue } from '../../utilities/amqp';
 import { generateClientSeed } from '../game/game-logic';
 import { roundHashes } from '../lobbies/lobby-event';
-import { inPlayUser } from '../../socket';
 
 const logger: Logger = createLogger('Bets', 'jsonl');
 const cashoutLogger: Logger = createLogger('Cashout', 'jsonl');
@@ -404,13 +403,15 @@ export const cashOut = async (
         betObj.atCo = Number(betObj.atCo);
         Object.assign(betObj, { lobby_id, bet_amount, user_id, operator_id });
 
+        if (betObj.atCo && atCo && betObj.atCo != atCo) {
+            return logEventAndEmitResponse(socket, CashObj, `Cheat: Invalid Cashout Multiplier. Setted Max Mult: ${betObj.atCo}, Received: ${atCo}`, 'cashout');
+        }
 
         let effective_max_mult: number;
-        if ((betObj.atCo) && atCo && betObj.atCo === atCo && atCo <= Number(lobbyData.ongoingMaxMult)) {
+        if (max_mult && atCo && max_mult > atCo) effective_max_mult = atCo;
+        else if ((betObj.atCo) && atCo && betObj.atCo === atCo && atCo <= Number(lobbyData.ongoingMaxMult))
             effective_max_mult = betObj.atCo;
-        } else {
-            effective_max_mult = max_mult;
-        }
+        else effective_max_mult = max_mult;
 
         betObj.atCo = !atCo ? 0 : atCo;
 
@@ -562,8 +563,7 @@ export const disConnect = async (io: Server, socket: Socket): Promise<void> => {
         return;
     }
     const parsedPlayerDetails: FinalUserData = JSON.parse(cachedPlayerDetails);
-    console.log("socket disconnected", parsedPlayerDetails.user_id);
-    inPlayUser.delete(parsedPlayerDetails.id);
+    await deleteCache(parsedPlayerDetails.id);
 
     if (userActiveBets.length > 0) {
         if (lobbyData.status === 1 && lobbyData.ongoingMaxMult) {
