@@ -558,10 +558,12 @@ const createRoundStats = (roundData: RoundData, currentRoundSettlements: Settlem
 export const disConnect = async (io: Server, socket: Socket): Promise<void> => {
     const userActiveBets = bets.filter(bet => bet.socket_id === socket.id && !bet.plane_status);
     const cachedPlayerDetails = await getCache(`PL:${socket.id}`);
+
     if (!cachedPlayerDetails) {
         socket.emit('betError', 'Invalid Player Details');
         return;
-    }
+    };
+
     const parsedPlayerDetails: FinalUserData = JSON.parse(cachedPlayerDetails);
     await deleteCache(parsedPlayerDetails.id);
 
