@@ -16,23 +16,14 @@ function getCombinedSeed(serverSeed: string, clientSeeds: any[]) {
 
 function sha512(input: crypto.BinaryLike) {
     return crypto.createHash('sha512').update(input).digest('hex');
-}
-
-
-// function calculateCrashPoint(hash: string): number {
-//     const h = BigInt('0x' + hash.slice(0, 13));
-//     if (h % 22n === 0n) return 1.00;
-//     const e = BigInt(2) ** BigInt(52);
-//     const result = (BigInt(100) * e) / (h + 1n);
-//     return Number(result) / 100;
-// };
+};
 
 function calculateCrashPoint(hash: string): number {
     const h = BigInt('0x' + hash.slice(0, 13));
-    if (h % 20n === 0n) return 1.00; //5 Percent
-    const e = 2n ** 52n;
-    const result = (BigInt(95) * e) / (e - h);
-    return Math.max(1, Number(result) / 100);
+    if (h % 22n === 0n) return 1.00;
+    const e = BigInt(2) ** BigInt(52);
+    const result = (BigInt(100) * e) / (h + 1n);
+    return Number(result) / 100;
 };
 
 
