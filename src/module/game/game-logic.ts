@@ -20,7 +20,7 @@ function sha512(input: crypto.BinaryLike) {
 
 function calculateCrashPoint(hash: string): number {
     const h = BigInt('0x' + hash.slice(0, 13));
-    if (h % 10n === 0n) return 1.00;
+    if (h % 22n === 0n) return 1.00;
     const e = BigInt(2) ** BigInt(52);
     const result = (BigInt(100) * e) / (h + 1n);
     return Number(result) / 100;
@@ -35,12 +35,36 @@ export const createRoundHashes = () => {
     }
 };
 
-export function generateCrashMult(): {
+export function generateCrashMultInternal(attemps = 0): {
     serverSeed: string, hashedSeed: string, max_mult: number
 } {
+    if (attemps > 0) {
+        delete roundHashes[Object.keys(roundHashes)[2]];
+        createRoundHashes();
+    }
     const serverSeed = roundServerSeed;
     const combinedSeed = getCombinedSeed(serverSeed, Object.values(roundHashes));
     const hashedSeed = sha512(combinedSeed);
     const max_mult = calculateCrashPoint(hashedSeed);
     return { serverSeed, hashedSeed, max_mult }
+};
+
+export function generateCrashMult(): {
+    serverSeed: string, hashedSeed: string, max_mult: number
+} {
+    let attempts = 0;
+    let resps: any = [];
+    let res = generateCrashMultInternal();
+    while ((res.max_mult >= 2) && (Math.random() < 0.12)) {
+        resps.push({ ...res });
+        attempts++;
+        if (attempts > 10) {
+            resps = resps.sort((a: any, b: any) => a.max_mult - b.max_mult);
+            res = resps[0];
+            console.log("Reached breaking point")
+            break;
+        }
+        res = generateCrashMultInternal(attempts);
+    }
+    return res;
 };
