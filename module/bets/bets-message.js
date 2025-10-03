@@ -297,17 +297,17 @@ const cashOut = async (io, socket, [max_mult, status, maxAutoCashout, isAutoCash
         if (!betObj) return logEventAndEmitResponse(socket, CashObj, 'No active bet for the event', 'cashout');
         Object.assign(betObj, { lobby_id, bet_amount, user_id, operator_id });
 
-        if (parseFloat(betObj.maxAutoCashout) && parseFloat(maxAutoCashout) && parseFloat(betObj.maxAutoCashout) != parseFloat(maxAutoCashout)) {
-            return logEventAndEmitResponse(socket, CashObj, `Cheat: Invalid Cashout Multiplier. Setted Max Mult: ${betObj.atCo}, Received: ${atCo}`, 'cashout');
+        if ((parseFloat(betObj.maxAutoCashout) && parseFloat(maxAutoCashout) && parseFloat(betObj.maxAutoCashout) != parseFloat(maxAutoCashout)) || (betObj.maxAutoCashout == 'null' && !isNaN(Number(maxAutoCashout)))) {
+            return logEventAndEmitResponse(socket, CashObj, `Invalid Cashout Multiplier. Setted Max Mult: ${betObj.maxAutoCashout}, Received: ${maxAutoCashout}`, 'cashout');
         };
 
         if (parseFloat(max_mult) && parseFloat(maxAutoCashout) && parseFloat(max_mult) > parseFloat(maxAutoCashout)) max_mult = parseFloat(maxAutoCashout);
         else max_mult = (betObj.maxAutoCashout !== 'null' && maxAutoCashout !== 'null' && Number(betObj.maxAutoCashout) == Number(maxAutoCashout) && Number(maxAutoCashout) <= Number(lobbyData['ongoingMaxMult'])) ? betObj.maxAutoCashout : max_mult;
-        
+
         betObj.maxAutoCashout = (maxAutoCashout === 'null') ? 'null' : Number(betObj.maxAutoCashout).toFixed(2);
 
         if (Number(max_mult) > Number(lobbyData['ongoingMaxMult']) || isNaN(Number(lobbyData['ongoingMaxMult']))) {
-            return logEventAndEmitResponse(socket, CashObj, `Cheat Invalid Cashout Multiplier, Current multiplier ${lobbyData['ongoingMaxMult']}, recieved ${max_mult}`, 'cashout');
+            return logEventAndEmitResponse(socket, CashObj, `Invalid Cashout Multiplier, Current multiplier ${lobbyData['ongoingMaxMult']}, recieved ${max_mult}`, 'cashout');
         }
 
         const userBets = bets.filter(e => e.token === betObj.token);
