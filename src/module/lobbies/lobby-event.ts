@@ -6,7 +6,7 @@ import { createLogger } from "../../utilities/logger";
 import { read } from "../../utilities/db-connection";
 import { LobbyData, LobbyHistory, OddsData } from "../../types";
 import { LobbiesMult } from "../../interfaces";
-import { createRoundHashes, generateCrashMult, generateServerSeed } from "../game/game-logic";
+import { createRoundHashes, generateRoundDetails, generateServerSeed, getMult } from "../game/game-logic";
 export let roundHashes: Record<string, string> = {};
 const logger = createLogger('Plane', 'jsonl');
 const planeErrorLogger = createLogger('PlaneError', 'plain');
@@ -87,7 +87,8 @@ const initLobby = async (io: Server): Promise<void> => {
     await sleep(3000);
 
     createRoundHashes();
-    const { serverSeed, hashedSeed, max_mult } = generateCrashMult();
+    const { serverSeed, hashedSeed } = generateRoundDetails();
+    const max_mult = getMult();
 
     updateServerSeed();
     io.emit('rndSd', roundServerSeed);
